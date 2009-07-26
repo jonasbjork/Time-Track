@@ -1,0 +1,5 @@
+; $Id$
+name = Time Track
+description = Time track is a time tracking module
+core = 6.x
+version = 1.0

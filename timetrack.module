@@ -1,0 +1,186 @@
+<?php
+/**
+  Time Track
+  Written by Jonas Björk <jonas@jonasbjork.net> 2009-07-17
+  
+  Licensed under European Union Public License (EUPL) version 1.1
+  that can be found at http://ec.europa.eu/idabc/eupl 
+*/
+// include_once './includes/bootstrap.inc';
+// drupal_bootstrap(DRUPAL_BOOTSTRAP_FULL);
+
+//Drupal Functions
+
+function timetrack_init() {
+  drupal_add_css(drupal_get_path('module', 'timetrack') .'/timetrack.css', 'module');
+}
+
+function timetrack_help($section='') {
+
+  $output = '';
+
+  switch ($section) {
+    case "admin/help#timetrack":
+      $output = '<p>'.  t("Time Track keeps track of your time"). '</p>';
+      break;
+  }
+
+  return $output;
+}
+
+function timetrack_perm() {
+  return array('access timetrack content');
+}
+
+
+function timetrack_menu() {
+
+  $items = array();
+
+  $items['timetrack'] = array(
+    'title' => t('Time Track'),
+    'page callback' => 'timetrack_all',
+    'access arguments' => array('access timetrack content'),
+    'type' => MENU_CALLBACK
+  );
+  
+  $items['admin/timetrack'] = array(
+    'title' => t('Time Track'),
+    'description' => t('Manage Time Track'),
+    'position' => 'left',
+    'page callback' => 'timetrack_admin',
+    'access arguments' => array('access administration pages'),
+    //'file' => 'system.admin.inc',
+    //'file path' => drupal_get_path('module', 'system'),
+  );
+
+  
+  return $items;
+
+  }
+
+
+function timetrack_all() {
+
+  $output = timetrack_index();
+  
+  return $output;
+}
+
+
+function timetrack_index() {
+	global $user;
+	
+	$output = '<p><strong>Time Track</strong> håller koll på din tidsredovisning.</p>';
+	
+ 	$output .= drupal_get_form('timetrack_post_link_form');
+ 	
+	return $output;
+}
+
+function timetrack_post_link_form($form_state) {
+
+  $hour = array();
+  for($i = 0; $i < 24; $i++) {
+    ($i < 10) ? $m = '0'.$i : $m = $i;
+	$hour[] = $m;
+  }
+  $min = array();
+  for($i = 0; $i < 60; $i++) {
+	($i < 10) ? $m = '0'.$i : $m = $i;
+	$min[] = $m;
+  }
+  $projects = array('Project 1', 'Project 2', 'Project 3');
+  
+  $form['timetrack_start_hour'] = array(
+    '#type' => 'select',
+    '#title' => t('Start hour'),
+    '#default_value' => '08',
+    '#options' => drupal_map_assoc($hour),
+  );
+  
+  $form['timetrack_start_min'] = array(
+    '#type' => 'select',
+    '#title' => t('Start min'),
+    '#default_value' => '00',
+    '#options' => drupal_map_assoc($min),
+  );
+  
+  $form['timetrack_end_hour'] = array(
+    '#type' => 'select',
+	'#title' => t('End hour'),
+	'#default_value' => '16',
+	'#options' => drupal_map_assoc($hour),
+  );
+  
+  $form['timetrack_end_min'] = array(
+    '#type' => 'select',
+    '#title' => t('End min'),
+    '#default_value' => '00',
+    '#options' => drupal_map_assoc($min),
+  );
+  
+  $form['timetrack_project'] = array(
+    '#type' => 'select',
+	'#title' => t('Project'),
+	'#default_value' => '',
+	'#options' => drupal_map_assoc($projects),
+  );
+  
+  $form['timetrack_invoice'] = array(
+    '#type' => 'checkbox',
+	'#title' => t('Invoice'),
+	'#default_value' => 'checked',
+  );
+  
+  $form['timetrack_internal'] = array(
+    '#type' => 'checkbox',
+	'#title' => t('Internal'),
+	'#default_value' => '',
+  );
+  
+  $form['timetrack_comment'] = array(
+    '#type' => 'textfield',
+	'#title' => t('Notes'),
+	'#size' => 80,
+	'#description' => t('What have you done?'),
+  );
+  
+  
+/*  
+  $form['link'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Link',
+	'#size' => 60,
+	'#description' => 'Ange länken du vill skapa här.',
+  );
+
+  $form['linksubmit'] = array(
+    '#type' => 'submit',
+	'#value' => 'Skapa',
+  );
+  */
+  return $form;
+}
+
+function timetrack_post_link_form_validate($form, &$form_state) {
+  if($form_state['values']['link'] == '') {
+    form_set_error('', 'Du måste ange en länk!');
+  }
+  // TODO: Kolla med regexp att det är en länk (http:,https:. ... .)
+}
+
+function timetrack_post_link_form_submit($form, &$form_state) {
+
+  while(true) {
+    $url = check_plain(createShort());
+    $r = db_query("SELECT id FROM {mylink_url} WHERE shorturl='%s' LIMIT 1", $url);
+    if( db_result($r) == 0 ) {
+	  break;
+    }
+  }
+  db_query("INSERT INTO {mylink_url} (url,shorturl,posted,ip_addr) VALUES('%s','%s',unix_timestamp(),'%s')", check_plain($form_state['values']['link']), $url, check_plain($_SERVER['REMOTE_ADDR']));
+  
+  drupal_set_message("Din lank skapades: $url");
+  
+}
